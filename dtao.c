@@ -23,6 +23,12 @@
 #define MIN(a, b)               ((a) < (b) ? (a) : (b))
 #define MAX(a, b)               ((a) > (b) ? (a) : (b))
 
+#define IFARG(a)                if (!strcmp(argv[i], a))\
+					if (++i >= argc) {\
+                                		BARF("option %s requires an argument", a);\
+					} else 
+					
+
 #define PROGRAM "dtao"
 #define VERSION "0.1"
 #define COPYRIGHT "copyright 2021 Devin J. Pohly and dtao team"
@@ -488,6 +494,7 @@ read_stdin(void)
 
 	/* Redraw if anything new was rendered */
 	if (buffer) {
+		wl_display_flush(display); // seems to be working well for me here
 		wl_surface_attach(wl_surface, buffer, 0, 0);
 		wl_surface_damage_buffer(wl_surface, 0, 0, width, height);
 		wl_surface_commit(wl_surface);
@@ -499,6 +506,7 @@ event_loop(void)
 {
 	int ret;
 	int wlfd = wl_display_get_fd(display);
+	wl_display_flush(display); // would remain hidden until updated otherwise
 
 	while (run_display) {
 		fd_set rfds;
@@ -507,7 +515,7 @@ event_loop(void)
 		FD_SET(wlfd, &rfds);
 
 		/* Does this need to be inside the loop? */
-		wl_display_flush(display);
+		// wl_display_flush(display);
 
 		ret = select(wlfd + 1, &rfds, NULL, NULL, NULL);
 		if (ret < 0)
@@ -538,18 +546,12 @@ main(int argc, char **argv)
 		if (!strcmp(argv[i], "-b")) {
 			anchor ^= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
 				ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
-		} else if (!strcmp(argv[i], "-bg")) {
-			if (++i >= argc)
-				BARF("option -bg requires an argument");
+		} else IFARG("-bg") {
 			if (parse_color(argv[i], &bgcolor))
 				BARF("malformed color string for -bg");
-		} else if (!strcmp(argv[i], "-e")) {
-			if (++i >= argc)
-				BARF("option -e requires an argument");
+		} else IFARG("-e") {
 			actionstr = argv[i];
-		} else if (!strcmp(argv[i], "-expand")) {
-			if (++i >= argc)
-				BARF("option -expand requires an argument");
+		} else IFARG("-expand") {
 			expand = true;
 			if (argv[i][0] == 'l')
 				titlealign = ALIGN_R;
@@ -557,26 +559,16 @@ main(int argc, char **argv)
 				titlealign = ALIGN_L;
 			else if (argv[i][0] == 'c')
 				titlealign = ALIGN_C;
-		} else if (!strcmp(argv[i], "-fg")) {
-			if (++i >= argc)
-				BARF("option -fg requires an argument");
+		} else IFARG("-fg") {
 			if (parse_color(argv[i], &fgcolor))
 				BARF("malformed color string for -fg");
-		} else if (!strcmp(argv[i], "-fn")) {
-			if (++i >= argc)
-				BARF("option -fn requires an argument");
+		} else IFARG("-fn") {
 			fontstr = argv[i];
-		} else if (!strcmp(argv[i], "-h")) {
-			if (++i >= argc)
-				BARF("option -h requires an argument");
+		} else IFARG ("-h") {
 			height = atoi(argv[i]);
-		} else if (!strcmp(argv[i], "-l")) {
-			if (++i >= argc)
-				BARF("option -l requires an argument");
+		} else IFARG("-l") {
 			lines = atoi(argv[i]);
-		} else if (!strcmp(argv[i], "-L")) {
-			if (++i >= argc)
-				BARF("option -L requires an argument");
+		} else IFARG("-L") {
 			if (argv[i][0] == 'o')
 				layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
 			else if (argv[i][0] == 'b')
@@ -585,22 +577,16 @@ main(int argc, char **argv)
 				layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
 			else
 				layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP;
-		} else if (!strcmp(argv[i], "-p")) {
-			if (++i >= argc)
-				BARF("option -p requires an argument");
+		} else IFARG("-p") {
 			persist = atoi(argv[i]);
-		} else if (!strcmp(argv[i], "-sa")) {
-			if (++i >= argc)
-				BARF("option -sa requires an argument");
+		} else IFARG("-sa") {
 			if (argv[i][0] == 'l')
 				subalign = ALIGN_L;
 			else if (argv[i][0] == 'r')
 				subalign = ALIGN_R;
 			else
 				subalign = ALIGN_C;
-		} else if (!strcmp(argv[i], "-ta")) {
-			if (++i >= argc)
-				BARF("option -ta requires an argument");
+		} else IFARG("-ta") {
 			/* Expand overrides alignment */
 			if (!expand) {
 				if (argv[i][0] == 'l')
@@ -610,22 +596,16 @@ main(int argc, char **argv)
 				else
 					titlealign = ALIGN_C;
 			}
-		} else if (!strcmp(argv[i], "-tw")) {
-			if (++i >= argc)
-				BARF("option -tw requires an argument");
+		} else IFARG("-tw") {
 			titlewidth = atoi(argv[i]);
 		} else if (!strcmp(argv[i], "-u")) {
 			unified = 1;
 		} else if (!strcmp(argv[i], "-v")) {
 			fprintf(stderr, PROGRAM " " VERSION ", " COPYRIGHT "\n");
 			return 0;
-		} else if (!strcmp(argv[i], "-w")) {
-			if (++i >= argc)
-				BARF("option -w requires an argument");
+		} else IFARG("-w") {
 			width = atoi(argv[i]);
-		} else if (!strcmp(argv[i], "-xs")) {
-			if (++i >= argc)
-				BARF("option -xs requires an argument");
+		} else IFARG("-xs") {
 			/* One-based to match dzen2 */
 			output = atoi(argv[i]) - 1;
 		} else if (!strcmp(argv[i], "-z")) {
@@ -676,8 +656,6 @@ main(int argc, char **argv)
 	wl_display_roundtrip(display);
 
 	event_loop();
-
-	/* Clean everything up */
 	zwlr_layer_surface_v1_destroy(layer_surface);
 	wl_surface_destroy(wl_surface);
 	zwlr_layer_shell_v1_destroy(layer_shell);
